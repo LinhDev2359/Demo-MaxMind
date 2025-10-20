@@ -87,31 +87,4 @@ public class GeoLocation {
      */
     private LocalDateTime resolvedAt;
     
-    /**
-     * Check if location data is available for Asia-Pacific region
-     * @return true if location is in supported APAC countries
-     */
-    public boolean isApacRegion() {
-        if (countryCode == null) return false;
-        return countryCode.matches("VN|SG|JP|TH|MY|ID|PH|KR|TW|HK|IN|AU|NZ");
-    }
-    
-    /**
-     * Get formatted location string for logging
-     * @return formatted string like "Ho Chi Minh City, Vietnam (VN)"
-     */
-    public String getFormattedLocation() {
-        StringBuilder sb = new StringBuilder();
-        if (city != null && !city.isEmpty()) {
-            sb.append(city);
-        }
-        if (countryName != null && !countryName.isEmpty()) {
-            if (!sb.isEmpty()) sb.append(", ");
-            sb.append(countryName);
-        }
-        if (countryCode != null && !countryCode.isEmpty()) {
-            sb.append(" (").append(countryCode).append(")");
-        }
-        return sb.toString();
-    }
 }

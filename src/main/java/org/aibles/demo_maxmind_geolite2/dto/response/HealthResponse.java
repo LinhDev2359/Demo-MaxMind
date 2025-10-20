@@ -6,6 +6,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
+/**
+ * Response DTO for service health status
+ * Contains service availability and database information
+ */
 @Data
 @Builder
 @NoArgsConstructor

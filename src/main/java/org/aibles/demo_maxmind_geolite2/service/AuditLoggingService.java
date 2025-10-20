@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aibles.demo_maxmind_geolite2.entity.AuditLogEntry;
 import org.aibles.demo_maxmind_geolite2.entity.GeoLocation;
+import org.aibles.demo_maxmind_geolite2.enums.AuditEventType;
+import org.aibles.demo_maxmind_geolite2.enums.RiskLevel;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -20,6 +22,8 @@ import java.util.UUID;
 public class AuditLoggingService {
     
     private final GeoIpService geoIpService;
+    private final LocationSecurityService locationSecurityService;
+    private final AuditLogFormatter auditLogFormatter;
     
     /**
      * Log QR code scan event with geographic context
@@ -41,12 +45,12 @@ public class AuditLoggingService {
             .userId(userId)
             .qrCodeId(qrCodeId)
             .sessionId(sessionId)
-            .eventType("QR_SCAN")
+            .eventType(AuditEventType.QR_SCAN.getCode())
             .geoLocation(geoLocation)
             .userAgent(userAgent)
             .timestamp(LocalDateTime.now())
             .success(true)
-            .riskLevel(assessRiskLevel(geoLocation))
+            .riskLevel(locationSecurityService.assessRiskLevel(geoLocation))
             .build();
         
         logAuditEvent(auditLog);
@@ -73,18 +77,18 @@ public class AuditLoggingService {
             .userId(userId)
             .qrCodeId(qrCodeId)
             .sessionId(sessionId)
-            .eventType("LOGIN_SUCCESS")
+            .eventType(AuditEventType.LOGIN_SUCCESS.getCode())
             .geoLocation(geoLocation)
             .userAgent(userAgent)
             .timestamp(LocalDateTime.now())
             .success(true)
-            .riskLevel(assessRiskLevel(geoLocation))
+            .riskLevel(locationSecurityService.assessRiskLevel(geoLocation))
             .build();
         
         logAuditEvent(auditLog);
         
         // Log additional warning for suspicious locations
-        if (auditLog.isSuspiciousLocation()) {
+        if (locationSecurityService.isSuspiciousLocation(auditLog.getGeoLocation())) {
             logSecurityAlert(auditLog);
         }
         
@@ -112,7 +116,7 @@ public class AuditLoggingService {
             .userId(userId != null ? userId : "UNKNOWN")
             .qrCodeId(qrCodeId)
             .sessionId(sessionId)
-            .eventType("LOGIN_FAILED")
+            .eventType(AuditEventType.LOGIN_FAILED.getCode())
             .geoLocation(geoLocation)
             .userAgent(userAgent)
             .timestamp(LocalDateTime.now())
@@ -124,7 +128,7 @@ public class AuditLoggingService {
         logAuditEvent(auditLog);
         
         // Always log security alert for failed attempts from suspicious locations
-        if (auditLog.isSuspiciousLocation()) {
+        if (locationSecurityService.isSuspiciousLocation(auditLog.getGeoLocation())) {
             logSecurityAlert(auditLog);
         }
         
@@ -148,11 +152,11 @@ public class AuditLoggingService {
             .userId(userId)
             .qrCodeId(qrCodeId)
             .sessionId(sessionId)
-            .eventType("QR_GENERATED")
+            .eventType(AuditEventType.QR_GENERATED.getCode())
             .geoLocation(geoLocation)
             .timestamp(LocalDateTime.now())
             .success(true)
-            .riskLevel("LOW")
+            .riskLevel(RiskLevel.LOW.getCode())
             .build();
         
         logAuditEvent(auditLog);
@@ -168,22 +172,22 @@ public class AuditLoggingService {
      */
     private String assessRiskLevel(GeoLocation geoLocation, boolean isFailedAttempt) {
         if (geoLocation == null) {
-            return isFailedAttempt ? "HIGH" : "MEDIUM";
+            return isFailedAttempt ? RiskLevel.HIGH.getCode() : RiskLevel.MEDIUM.getCode();
         }
         
         // High risk factors
         if (geoLocation.isProxy() || isFailedAttempt) {
-            return "HIGH";
+            return RiskLevel.HIGH.getCode();
         }
         
         // Medium risk factors
-        if (!geoLocation.isApacRegion() || 
+        if (!locationSecurityService.isApacRegion(geoLocation) || 
             (geoLocation.getAccuracyRadius() != null && geoLocation.getAccuracyRadius() > 50)) {
-            return "MEDIUM";
+            return RiskLevel.MEDIUM.getCode();
         }
         
         // Low risk for normal APAC region access
-        return "LOW";
+        return RiskLevel.LOW.getCode();
     }
     
     /**
@@ -211,7 +215,7 @@ public class AuditLoggingService {
      * @param auditLog Audit log entry to write
      */
     private void logAuditEvent(AuditLogEntry auditLog) {
-        log.info("AUDIT_LOG: {}", auditLog.generateLogMessage());
+        log.info("AUDIT_LOG: {}", auditLogFormatter.generateLogMessage(auditLog));
         
         // In production, you might want to:
         // 1. Send to centralized logging system (ELK, Splunk)
@@ -227,7 +231,7 @@ public class AuditLoggingService {
      */
     private void logSecurityAlert(AuditLogEntry auditLog) {
         log.warn("SECURITY_ALERT: Suspicious QR login activity detected - {}", 
-            auditLog.generateLogMessage());
+            auditLogFormatter.generateLogMessage(auditLog));
             
         // In production, implement:
         // 1. Real-time alerting to security team

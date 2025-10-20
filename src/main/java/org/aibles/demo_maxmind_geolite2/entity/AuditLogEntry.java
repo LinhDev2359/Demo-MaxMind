@@ -79,41 +79,4 @@ public class AuditLogEntry {
      */
     private String errorMessage;
     
-    /**
-     * Check if this login attempt is from a suspicious location
-     * @return true if location appears suspicious
-     */
-    public boolean isSuspiciousLocation() {
-        if (geoLocation == null) return true;
-        
-        // Flag as suspicious if:
-        // 1. Using proxy/VPN
-        // 2. Outside APAC region
-        // 3. Low accuracy (> 50km radius)
-        return geoLocation.isProxy() || 
-               !geoLocation.isApacRegion() ||
-               (geoLocation.getAccuracyRadius() != null && geoLocation.getAccuracyRadius() > 50);
-    }
-    
-    /**
-     * Generate log message for audit trail
-     * @return formatted audit log message
-     */
-    public String generateLogMessage() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("QR Login Event: ").append(eventType);
-        sb.append(" | User: ").append(userId);
-        sb.append(" | Success: ").append(success);
-        
-        if (geoLocation != null) {
-            sb.append(" | Location: ").append(geoLocation.getFormattedLocation());
-            sb.append(" | IP: ").append(geoLocation.getIpAddress());
-        }
-        
-        if (isSuspiciousLocation()) {
-            sb.append(" | SUSPICIOUS");
-        }
-        
-        return sb.toString();
-    }
 }

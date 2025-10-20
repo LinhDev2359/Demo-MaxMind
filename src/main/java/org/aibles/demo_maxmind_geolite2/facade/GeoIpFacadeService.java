@@ -21,27 +21,39 @@ public class GeoIpFacadeService {
     private final GeoIpResponseService responseService;
     private final DatabaseFacadeService databaseFacadeService;
     
-    public GeoLocationResponse getLocationInfo(String ipAddress, HttpServletRequest request) {
+    public ApiResponse<GeoLocationResponse> getLocationInfo(String ipAddress, HttpServletRequest request) {
         String targetIp = determineTargetIp(ipAddress, request);
         
         if (!isValidIp(targetIp)) {
-            return buildInvalidIpResponse();
+            return ApiResponse.error("No IP address provided or detectable");
         }
         
         Optional<GeoLocation> geoLocation = geoIpService.resolveLocation(targetIp);
-        return responseService.buildLocationResponse(geoLocation, targetIp);
+        GeoLocationResponse response = responseService.buildLocationResponse(geoLocation, targetIp);
+        
+        if (response.getData() == null) {
+            return ApiResponse.error("No location data available for IP: " + response.getIp());
+        }
+        
+        return ApiResponse.success(response, "Location retrieved successfully");
     }
     
-    public HealthResponse getServiceHealth() {
+    public ApiResponse<HealthResponse> getServiceHealth() {
         boolean serviceAvailable = geoIpService.isServiceAvailable();
         String databaseInfo = geoIpService.getDatabaseInfo();
         String updateStatus = databaseFacadeService.getUpdateStatus();
         
-        return responseService.buildHealthResponse(serviceAvailable, databaseInfo, updateStatus);
+        HealthResponse response = responseService.buildHealthResponse(serviceAvailable, databaseInfo, updateStatus);
+        String message = serviceAvailable ? "Service is healthy" : "Service is unavailable";
+        
+        return ApiResponse.success(response, message);
     }
     
-    public DatabaseUpdateResponse performDatabaseUpdate() {
-        return databaseFacadeService.performUpdate();
+    public ApiResponse<DatabaseUpdateResponse> performDatabaseUpdate() {
+        DatabaseUpdateResponse response = databaseFacadeService.performUpdate();
+        String message = response.isUpdateSuccessful() ? "Database updated successfully" : "Database update failed";
+        
+        return ApiResponse.success(response, message);
     }
     
     private String determineTargetIp(String providedIp, HttpServletRequest request) {
@@ -54,8 +66,8 @@ public class GeoIpFacadeService {
     
     private GeoLocationResponse buildInvalidIpResponse() {
         return GeoLocationResponse.builder()
-                .success(false)
-                .message("No IP address provided or detectable")
+                .ip(null)
+                .data(null)
                 .build();
     }
     

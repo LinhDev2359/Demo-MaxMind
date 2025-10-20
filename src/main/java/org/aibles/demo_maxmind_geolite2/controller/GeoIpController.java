@@ -8,9 +8,11 @@ import org.aibles.demo_maxmind_geolite2.facade.AuditFacadeService;
 import org.aibles.demo_maxmind_geolite2.facade.GeoIpFacadeService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 /**
  * REST API controller for GeoIP services
@@ -21,6 +23,7 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/api/geoip")
 @RequiredArgsConstructor
+@Validated
 public class GeoIpController {
     
     private final GeoIpFacadeService geoIpFacadeService;
@@ -35,14 +38,14 @@ public class GeoIpController {
      * @return ResponseEntity containing GeoLocation data or error
      */
     @GetMapping("/location")
-    public ResponseEntity<GeoLocationResponse> getLocation(
+    public ResponseEntity<ApiResponse<GeoLocationResponse>> getLocation(
             @RequestParam(required = false) String ipAddress,
             HttpServletRequest request) {
         
         try {
-            GeoLocationResponse response = geoIpFacadeService.getLocationInfo(ipAddress, request);
+            ApiResponse<GeoLocationResponse> response = geoIpFacadeService.getLocationInfo(ipAddress, request);
             
-            if (!response.isSuccess() && response.getMessage().contains("No IP address")) {
+            if (!response.isSuccess()) {
                 return ResponseEntity.badRequest().body(response);
             }
             
@@ -50,11 +53,8 @@ public class GeoIpController {
             
         } catch (Exception e) {
             log.error("Error processing location request", e);
-            GeoLocationResponse errorResponse = GeoLocationResponse.builder()
-                    .success(false)
-                    .message("Internal server error: " + e.getMessage())
-                    .build();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Internal server error: " + e.getMessage()));
         }
     }
     
@@ -67,20 +67,18 @@ public class GeoIpController {
      * @return ResponseEntity containing audit log entry
      */
     @PostMapping("/audit/qr-scan")
-    public ResponseEntity<AuditResponse> logQrScan(
-            @RequestBody QrScanRequest request,
+    public ResponseEntity<ApiResponse<AuditResponse>> logQrScan(
+            @Valid @RequestBody QrScanRequest request,
             HttpServletRequest httpRequest) {
         
         try {
-            AuditResponse response = auditFacadeService.processQrScanEvent(request, httpRequest);
+            ApiResponse<AuditResponse> response = auditFacadeService.processQrScanEvent(request, httpRequest);
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             log.error("Error logging QR scan event", e);
-            AuditResponse errorResponse = AuditResponse.builder()
-                    .success(false)
-                    .build();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Internal server error: " + e.getMessage()));
         }
     }
     
@@ -92,20 +90,18 @@ public class GeoIpController {
      * @return ResponseEntity containing audit log entry
      */
     @PostMapping("/audit/login-success")
-    public ResponseEntity<AuditResponse> logLoginSuccess(
-            @RequestBody QrLoginRequest request,
+    public ResponseEntity<ApiResponse<AuditResponse>> logLoginSuccess(
+            @Valid @RequestBody QrLoginRequest request,
             HttpServletRequest httpRequest) {
         
         try {
-            AuditResponse response = auditFacadeService.processLoginSuccess(request, httpRequest);
+            ApiResponse<AuditResponse> response = auditFacadeService.processLoginSuccess(request, httpRequest);
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             log.error("Error logging login success", e);
-            AuditResponse errorResponse = AuditResponse.builder()
-                    .success(false)
-                    .build();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Internal server error: " + e.getMessage()));
         }
     }
     
@@ -117,20 +113,18 @@ public class GeoIpController {
      * @return ResponseEntity containing audit log entry
      */
     @PostMapping("/audit/login-failed")
-    public ResponseEntity<AuditResponse> logLoginFailed(
-            @RequestBody QrLoginFailureRequest request,
+    public ResponseEntity<ApiResponse<AuditResponse>> logLoginFailed(
+            @Valid @RequestBody QrLoginFailureRequest request,
             HttpServletRequest httpRequest) {
         
         try {
-            AuditResponse response = auditFacadeService.processLoginFailure(request, httpRequest);
+            ApiResponse<AuditResponse> response = auditFacadeService.processLoginFailure(request, httpRequest);
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             log.error("Error logging login failure", e);
-            AuditResponse errorResponse = AuditResponse.builder()
-                    .success(false)
-                    .build();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Internal server error: " + e.getMessage()));
         }
     }
     
@@ -140,20 +134,17 @@ public class GeoIpController {
      * @return ResponseEntity containing service status information
      */
     @GetMapping("/health")
-    public ResponseEntity<HealthResponse> getHealth() {
+    public ResponseEntity<ApiResponse<HealthResponse>> getHealth() {
         try {
-            HealthResponse response = geoIpFacadeService.getServiceHealth();
+            ApiResponse<HealthResponse> response = geoIpFacadeService.getServiceHealth();
             
-            HttpStatus status = response.isServiceAvailable() ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
+            HttpStatus status = response.getData().isServiceAvailable() ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
             return ResponseEntity.status(status).body(response);
             
         } catch (Exception e) {
             log.error("Error checking service health", e);
-            HealthResponse errorResponse = HealthResponse.builder()
-                    .serviceAvailable(false)
-                    .timestamp(java.time.LocalDateTime.now())
-                    .build();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Internal server error: " + e.getMessage()));
         }
     }
     
@@ -163,19 +154,15 @@ public class GeoIpController {
      * @return ResponseEntity indicating update result
      */
     @PostMapping("/admin/update-database")
-    public ResponseEntity<DatabaseUpdateResponse> updateDatabase() {
+    public ResponseEntity<ApiResponse<DatabaseUpdateResponse>> updateDatabase() {
         try {
-            DatabaseUpdateResponse response = geoIpFacadeService.performDatabaseUpdate();
+            ApiResponse<DatabaseUpdateResponse> response = geoIpFacadeService.performDatabaseUpdate();
             return ResponseEntity.ok(response);
             
         } catch (Exception e) {
             log.error("Error during manual database update", e);
-            DatabaseUpdateResponse errorResponse = DatabaseUpdateResponse.builder()
-                    .success(false)
-                    .message("Database update failed: " + e.getMessage())
-                    .timestamp(java.time.LocalDateTime.now())
-                    .build();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Database update failed: " + e.getMessage()));
         }
     }
     

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.aibles.demo_maxmind_geolite2.entity.AuditLogEntry;
 import org.aibles.demo_maxmind_geolite2.dto.request.*;
 import org.aibles.demo_maxmind_geolite2.dto.response.AuditResponse;
+import org.aibles.demo_maxmind_geolite2.dto.response.ApiResponse;
 import org.aibles.demo_maxmind_geolite2.service.AuditLoggingService;
 import org.aibles.demo_maxmind_geolite2.service.GeoIpResponseService;
 import org.aibles.demo_maxmind_geolite2.util.IpExtractorUtil;
@@ -20,7 +21,7 @@ public class AuditFacadeService {
     private final AuditLoggingService auditLoggingService;
     private final GeoIpResponseService responseService;
     
-    public AuditResponse processQrScanEvent(QrScanRequest request, HttpServletRequest httpRequest) {
+    public ApiResponse<AuditResponse> processQrScanEvent(QrScanRequest request, HttpServletRequest httpRequest) {
         String clientIp = IpExtractorUtil.extractClientIp(httpRequest);
         String userAgent = httpRequest.getHeader("User-Agent");
         
@@ -32,10 +33,11 @@ public class AuditFacadeService {
             request.getSessionId()
         );
         
-        return responseService.buildAuditResponse(auditLog);
+        AuditResponse response = responseService.buildAuditResponse(auditLog);
+        return ApiResponse.success(response, "QR scan event logged successfully");
     }
     
-    public AuditResponse processLoginSuccess(QrLoginRequest request, HttpServletRequest httpRequest) {
+    public ApiResponse<AuditResponse> processLoginSuccess(QrLoginRequest request, HttpServletRequest httpRequest) {
         String clientIp = IpExtractorUtil.extractClientIp(httpRequest);
         String userAgent = httpRequest.getHeader("User-Agent");
         
@@ -47,10 +49,11 @@ public class AuditFacadeService {
             request.getSessionId()
         );
         
-        return responseService.buildAuditResponse(auditLog);
+        AuditResponse response = responseService.buildAuditResponse(auditLog);
+        return ApiResponse.success(response, "Login success logged successfully");
     }
     
-    public AuditResponse processLoginFailure(QrLoginFailureRequest request, HttpServletRequest httpRequest) {
+    public ApiResponse<AuditResponse> processLoginFailure(QrLoginFailureRequest request, HttpServletRequest httpRequest) {
         String clientIp = IpExtractorUtil.extractClientIp(httpRequest);
         String userAgent = httpRequest.getHeader("User-Agent");
         
@@ -63,6 +66,7 @@ public class AuditFacadeService {
             request.getErrorMessage()
         );
         
-        return responseService.buildAuditResponse(auditLog);
+        AuditResponse response = responseService.buildAuditResponse(auditLog);
+        return ApiResponse.success(response, "Login failure logged successfully");
     }
 }

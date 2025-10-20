@@ -15,31 +15,31 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class GeoIpResponseService {
     
+    private final AuditLogFormatter auditLogFormatter;
+    private final LocationSecurityService locationSecurityService;
+    
     public GeoLocationResponse buildLocationResponse(Optional<GeoLocation> geoLocation, String targetIp) {
         if (geoLocation.isPresent()) {
             log.info("Location lookup successful for IP: {} -> {}", 
-                targetIp, geoLocation.get().getFormattedLocation());
+                targetIp, auditLogFormatter.getFormattedLocation(geoLocation.get()));
             
             return GeoLocationResponse.builder()
-                    .success(true)
+                    .ip(targetIp)
                     .data(geoLocation.get())
-                    .message("Location resolved successfully")
                     .build();
         } else {
             return GeoLocationResponse.builder()
-                    .success(false)
-                    .message("Location not found for IP address")
                     .ip(targetIp)
+                    .data(null)
                     .build();
         }
     }
     
     public AuditResponse buildAuditResponse(AuditLogEntry auditLog) {
         return AuditResponse.builder()
-                .success(true)
                 .auditLogId(auditLog.getLogId())
                 .riskLevel(auditLog.getRiskLevel())
-                .suspicious(auditLog.isSuspiciousLocation())
+                .suspicious(locationSecurityService.isSuspiciousLocation(auditLog.getGeoLocation()))
                 .location(auditLog.getGeoLocation())
                 .build();
     }
@@ -55,8 +55,8 @@ public class GeoIpResponseService {
     
     public DatabaseUpdateResponse buildUpdateResponse(boolean success) {
         return DatabaseUpdateResponse.builder()
-                .success(success)
-                .message(success ? "Database update completed" : "Database update failed")
+                .updateSuccessful(success)
+                .details(success ? "Database update completed successfully" : "Database update operation failed")
                 .timestamp(LocalDateTime.now())
                 .build();
     }
