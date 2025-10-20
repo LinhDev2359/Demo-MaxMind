@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: demo-maxmind-geolite2
+
+# GeoIP Configuration
+geoip:
+  database:
+    path: src/main/resources/GeoLite2-City.mmdb
+    download-url: https://download.maxmind.com/app/geoip_download
+    edition-id: GeoLite2-City
+    suffix: tar.gz
+  
+  update:
+    enabled: true
+    interval: PT168H  # 7 days
+    interval-millis: 604800000  # 7 days in milliseconds for @Scheduled
+    timeout: PT10M    # 10 minutes
+    retry-attempts: 3
+    check-on-startup: true
+  
+  service:
+    maxmind-license-key: ${MAXMIND_LICENSE_KEY:}
+    enable-caching: true
+    cache-max-size: 10000
+    cache-expire-minutes: 60
+
+# Logging Configuration
+logging:
+  level:
+    org.aibles.demo_maxmind_geolite2.service: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
